@@ -1,13 +1,40 @@
 import os
 import sys
 import time
+import argparse
 from datetime import datetime
 
 import tensorflow as tf
 
 from tools import data_helper, utils
 from models import cnn_net_keras
-from args_management.tain_net_params import TrainNetArgs, train_net_args
+
+
+class TrainNetArgs:
+    gpu_device = 0
+    output_dir = "./logs"
+    output_name = "default"
+    train_pos_dir = r'C:\public_data\指纹识别\train_data_20190318_1045\positive'
+    train_neg_dir = r'C:\public_data\指纹识别\train_data_20190318_1045\negative'
+    image_size = 60
+    classes_num = 2
+    max_epochs = 999
+    epoch_size = 1000
+    batch_size = 256
+    learning_rate = -1
+    learning_rate_file = r'./data/learning_rate_test.txt'
+    tf_data_map_num = 8
+    tf_data_shuffle = -1  # 指定-1时默认全打乱, 在单个样本和数据量很大时不推荐如此做
+    per_image = 0  # 0: (x-mean)/adjusted_stddev,  1: (x-mean)/(max-min),  2: (x-127.5)/128
+
+
+def train_net_args(sys_argv):
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--gpu_device', help='指定显卡')
+    parser.add_argument('--output_dir', type=str, help='Directory with aligned face thumbnails.')
+
+    return parser.parse_args(sys_argv)
 
 
 def _parse_function(filename, label):
@@ -44,8 +71,8 @@ def main():
     iterator = dataset.make_one_shot_iterator()
     next_element = iterator.get_next()
     # 创建占位符
-    inputs = tf.placeholder(tf.float32, shape=(None,) + args.image_shape, name="inputs")
-    labels = tf.placeholder(tf.float32, shape=(None,) + (args.classes_num,), name="labels")
+    inputs = tf.placeholder(tf.float32, shape=(None, args.image_size, args.image_size, 1), name="inputs")
+    labels = tf.placeholder(tf.float32, shape=(None, args.classes_num), name="labels")
     keep_prob = tf.placeholder(tf.float32)
     learning_rate = tf.placeholder(tf.float32)
 
@@ -99,8 +126,8 @@ def main():
                 batch_number += 1
                 global_step += 1
                 sys.stdout.write(
-                    "\repoch: {:d}\tglobal_step: {:d}\ttotal_loss: {:f}\ttrain_acc: {:f}\tlr: {}\trun_time: {:f}".format(
-                        epoch, global_step, loss_, acc_, lr, run_time))
+                    "\repoch: {:d}\tglobal_step: {:d}\ttotal_loss: {:f}\ttrain_acc: {:f}\tlr: {}"
+                    "\trun_time: {:f}".format(epoch, global_step, loss_, acc_, lr, run_time))
             print("\t\tsave model...")
             checkpoint_path = os.path.join(model_dir, 'model-%s.ckpt' % args.output_name)
             saver.save(sess, checkpoint_path, global_step=global_step, write_meta_graph=False)
